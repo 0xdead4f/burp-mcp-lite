@@ -9,32 +9,33 @@ queries instead of full payload dumps.
 
 ## Why
 
-The official Burp MCP server exposes ~20 tools and serializes the full request
+The official Burp MCP server exposes ~24 tools and serializes the full request
 plus full response on every history entry. A 20-row history listing burns
 ~10k tokens before any work happens. `burp-mcp-lite` cuts the schema to ~1k
 tokens and lets the model ask for *exactly* the field/slice it needs.
 
 ## Install
 
-Requires Python 3.10+ and Burp Suite with the official MCP extension enabled
-(defaults to `http://127.0.0.1:9876/`).
+Requires Node.js ≥ 18.17 and Burp Suite with the official MCP extension
+enabled (defaults to `http://127.0.0.1:9876/`).
 
-### One-liner (Claude Code)
+### One-liner (Claude Code) — recommended
 
 ```bash
-pip install git+https://github.com/0xdead4f/burp-mcp-lite.git \
-  && claude mcp add burp -- burp-mcp-lite
+claude mcp add burp -- npx -y burp-mcp-lite
 ```
 
-That's it. Restart Claude Code, run `/mcp`, you should see `burp` listed with
-six tools.
+That's it. No global install. `npx` fetches the latest `burp-mcp-lite` from
+npm on demand. Restart Claude Code, run `/mcp`, you should see `burp` listed
+with six tools.
 
 ### Alternatives
 
-**`uvx` (no global install):**
+**Global install:**
 
 ```bash
-claude mcp add burp -- uvx --from git+https://github.com/0xdead4f/burp-mcp-lite.git burp-mcp-lite
+npm install -g burp-mcp-lite
+claude mcp add burp -- burp-mcp-lite
 ```
 
 **Manual config** (Claude Desktop or any MCP client) — drop this into
@@ -45,7 +46,8 @@ the equivalent on your platform:
 {
   "mcpServers": {
     "burp": {
-      "command": "burp-mcp-lite"
+      "command": "npx",
+      "args": ["-y", "burp-mcp-lite"]
     }
   }
 }
@@ -56,8 +58,9 @@ the equivalent on your platform:
 ```bash
 git clone https://github.com/0xdead4f/burp-mcp-lite.git
 cd burp-mcp-lite
-pip install -e .
-claude mcp add burp -- burp-mcp-lite
+npm install
+npm run build
+claude mcp add burp -- node $(pwd)/dist/cli.js
 ```
 
 ### Common flags
@@ -65,7 +68,7 @@ claude mcp add burp -- burp-mcp-lite
 Pass extra flags after the `--`:
 
 ```bash
-claude mcp add burp -- burp-mcp-lite --max-entries 500 --ttl 60
+claude mcp add burp -- npx -y burp-mcp-lite --max-entries 500 --ttl 60
 ```
 
 | Flag | Purpose |
@@ -81,10 +84,10 @@ claude mcp add burp -- burp-mcp-lite --max-entries 500 --ttl 60
 
 ```bash
 # Live: must have Burp running
-burp-mcp-lite --verbose
+npx -y burp-mcp-lite --verbose
 
 # Offline smoke test — no Burp needed
-burp-mcp-lite --fixture tests/fixtures/sample.json
+npx -y burp-mcp-lite --fixture tests/fixtures/sample.json
 ```
 
 ## Tools
@@ -107,6 +110,10 @@ burp-mcp-lite --fixture tests/fixtures/sample.json
 - `/regex/` — matching lines plus `context` lines on either side
 - `auto` *(view_response default)* — full if <4 KB, else head:20
 
+Long matching lines are capped at ~240 chars centered on the match — the
+predicate viewer never echoes a 50KB minified-JSON line just because it
+contained the needle.
+
 ### Status filter syntax (`list_history` `status` arg)
 
 - `200` — exact
@@ -115,10 +122,17 @@ burp-mcp-lite --fixture tests/fixtures/sample.json
 - `4xx-5xx` — class range
 - `200,4xx,500` — comma-separated mix
 
+### Auth-bearing headers are redacted by default
+
+Values for `Authorization`, `Proxy-Authorization`, `Cookie`, `Set-Cookie`,
+`X-Api-Key`, `X-Auth-Token`, `X-Csrf-Token`, `X-Access-Token` are replaced
+with `<redacted Nc>` (length stub). Pass `redact=false` when you need the
+raw bytes.
+
 ## Tests
 
 ```bash
-PYTHONPATH=src python3.11 -m pytest tests/ -q
+npm test
 ```
 
 Unit tests for parser/redact/slice/filter; tool tests against an in-memory
@@ -128,12 +142,12 @@ and exercises every tool via the MCP client.
 ## Repo layout
 
 ```
-src/burp_mcp_lite/
-├── __main__.py        — CLI entry point
-├── server.py          — MCP stdio server + tool registration
-├── upstream.py        — SSE client to Burp + FixtureUpstream
-├── snapshot.py        — in-memory cache + stable id mapping
-├── filters.py         — status range parser, host/path/method/mime/regex predicates
+src/
+├── cli.ts             — CLI entry point with #!/usr/bin/env node shebang
+├── server.ts          — MCP stdio server + tool registration
+├── upstream.ts        — SSE client to Burp + FixtureUpstream
+├── snapshot.ts        — in-memory cache + stable id mapping
+├── filters.ts         — status range parser, host/path/method/mime/regex predicates
 ├── tools/             — one file per tool
-└── format/            — http_parse, redact, slice, render
+└── format/            — http-parse, redact, slice, render
 ```
