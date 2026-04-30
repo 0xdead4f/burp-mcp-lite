@@ -18,10 +18,7 @@
   <h3 align="center">burp-mcp-lite</h3>
 
   <p align="center">
-    A token-efficient middleware MCP server for Burp Suite proxy history.
-    <br />
-    Six tools instead of twenty-four, headerless and redacted by default,
-    and a predicate primitive that returns yes/no instead of dumping bodies.
+    A token-efficient middleware for Burp Suite MCP Server.
     <br />
     <br />
     <a href="#usage">Usage</a>
@@ -77,7 +74,7 @@
 
 The official Burp Suite MCP extension exposes **24 tools** and serializes the
 full request plus full response on every history entry. A 20-row history
-listing burns ~10,000 tokens before any work happens — and that's *before*
+listing burns ~10,000 tokens before any work happens, and that's *before*
 the model has decided which entry to look at.
 
 `burp-mcp-lite` is a thin middleware that sits between your LLM client and
@@ -87,11 +84,7 @@ auth-bearing values, and provides a `match` *predicate* primitive that
 answers yes/no with a small evidence snippet instead of dumping the whole
 body into your context.
 
-A 20-row listing that costs ~10k tokens upstream costs ~200 tokens through
-the lite layer. The model still has full access — it just opts in to the
-bytes it actually needs.
-
-#### Token usage — upstream vs. lite
+#### Token usage upstream vs. lite
 
 Numbers below are approximations for typical traffic (mid-size JSON APIs,
 ~1.5 KB request, ~2 KB response, common cookie/auth headers). Your mileage
