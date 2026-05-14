@@ -1,17 +1,15 @@
-# Node
-node_modules/
-dist/
-*.tgz
-.npm/
-.node_repl_history
-
-# Builds / coverage
-coverage/
-.nyc_output/
-*.tsbuildinfo
-
-# Editor
-.vscode/
+.gradle/
+build/
+out/
 .idea/
-*.swp
+*.iml
+.kotlin/
+
+# OS / editor noise
 .DS_Store
+.vscode/
+
+# Local config not in version control
+local.properties
+
+CLAUDE.md
