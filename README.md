@@ -75,16 +75,6 @@ That's it. Restart your Claude Code session and `burp-mcp-lite` shows up in `/mc
 
 Any MCP client that can configure a remote connection works the same way — point it at `http://127.0.0.1:9876/mcp` (Streamable HTTP) or `http://127.0.0.1:9876/sse` (SSE) as your client requires. The MCP tab inside Burp shows live, copy-pasteable URLs with copy buttons.
 
-## Design invariants
-
-These are load-bearing — don't violate without discussion.
-
-1. **Stable ids.** `view_request(id=42)` returns the same entry across refreshes within a session. `snapshot/HistorySnapshot.kt` enforces this with an anchor probe (`raws[N-1]` fingerprint must equal our existing entry N-1); only on mismatch — typically history cleared in Burp — do we full-rebuild and reset ids.
-2. **Default-quiet outputs.** Headers off, cookies off, redact on. The model opts *in* to raw bytes.
-3. **Tool descriptions are tokens too.** Every word in a tool description is paid for on every turn. Keep them tight; prefer examples over prose.
-4. **Predicate tools must not become viewers.** `match` returns matched + bounded evidence. `Slice.windowedLine()` caps each emitted line at \~240 chars centered on the match — never echo a 50KB minified-JSON line just because it contains the needle.
-5. **Localhost-only.** SSE binds 127.0.0.1; Origin / Host / Referer guards reject anything off-loopback. Mirrors upstream's DNS-rebinding model.
-
 ## License
 
 MIT — see `LICENSE`
