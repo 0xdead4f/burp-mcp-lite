@@ -1,6 +1,7 @@
 package io.github.dead4f.burpmcplite.server
 
 import io.github.dead4f.burpmcplite.snapshot.FakeHistorySource
+import io.github.dead4f.burpmcplite.snapshot.FakeSiteMapSource
 import io.github.dead4f.burpmcplite.snapshot.RawEntry
 import io.github.dead4f.burpmcplite.tools.ToolRegistry
 import io.ktor.client.HttpClient
@@ -36,13 +37,13 @@ class StreamableHttpEndToEndTest {
             response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 2\r\n\r\nok",
             notes = null,
         )
-        return ToolRegistry.build(FakeHistorySource.of(raw))
+        return ToolRegistry.build(FakeHistorySource.of(raw), FakeSiteMapSource.of(raw))
     }
 
     @Test fun `POST initialize returns negotiated protocol and session header`() = runTest {
         testApplication {
             application {
-                StreamableHttp.install(this, registry(), "burp-mcp-lite", "0.3.0")
+                StreamableHttp.install(this, registry(), "burp-mcp-lite", "0.3.1")
             }
             val resp = client.post("/mcp") {
                 contentType(ContentType.Application.Json)
@@ -59,7 +60,7 @@ class StreamableHttpEndToEndTest {
     @Test fun `POST notification returns 202 with no body`() = runTest {
         testApplication {
             application {
-                StreamableHttp.install(this, registry(), "burp-mcp-lite", "0.3.0")
+                StreamableHttp.install(this, registry(), "burp-mcp-lite", "0.3.1")
             }
             val resp = client.post("/mcp") {
                 contentType(ContentType.Application.Json)
@@ -72,7 +73,7 @@ class StreamableHttpEndToEndTest {
     @Test fun `POST tools call returns content array`() = runTest {
         testApplication {
             application {
-                StreamableHttp.install(this, registry(), "burp-mcp-lite", "0.3.0")
+                StreamableHttp.install(this, registry(), "burp-mcp-lite", "0.3.1")
             }
             val resp = client.post("/mcp") {
                 contentType(ContentType.Application.Json)
@@ -88,7 +89,7 @@ class StreamableHttpEndToEndTest {
     @Test fun `GET on mcp is 405 with Allow header`() = runTest {
         testApplication {
             application {
-                StreamableHttp.install(this, registry(), "burp-mcp-lite", "0.3.0")
+                StreamableHttp.install(this, registry(), "burp-mcp-lite", "0.3.1")
             }
             val resp = client.get("/mcp")
             assertEquals(405, resp.status.value)
@@ -99,7 +100,7 @@ class StreamableHttpEndToEndTest {
     @Test fun `DELETE on mcp is 204`() = runTest {
         testApplication {
             application {
-                StreamableHttp.install(this, registry(), "burp-mcp-lite", "0.3.0")
+                StreamableHttp.install(this, registry(), "burp-mcp-lite", "0.3.1")
             }
             val resp = client.delete("/mcp")
             assertEquals(204, resp.status.value)
@@ -109,7 +110,7 @@ class StreamableHttpEndToEndTest {
     @Test fun `garbage body produces parse error response`() = runTest {
         testApplication {
             application {
-                StreamableHttp.install(this, registry(), "burp-mcp-lite", "0.3.0")
+                StreamableHttp.install(this, registry(), "burp-mcp-lite", "0.3.1")
             }
             val resp = client.post("/mcp") {
                 contentType(ContentType.Application.Json)

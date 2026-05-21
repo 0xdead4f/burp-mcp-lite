@@ -2,6 +2,7 @@ package io.github.dead4f.burpmcplite.server
 
 import burp.api.montoya.MontoyaApi
 import io.github.dead4f.burpmcplite.snapshot.BurpHistorySource
+import io.github.dead4f.burpmcplite.snapshot.BurpSiteMapSource
 import io.github.dead4f.burpmcplite.tools.ToolRegistry
 import io.ktor.http.*
 import io.ktor.server.application.*
@@ -36,7 +37,7 @@ class ServerManager(private val api: MontoyaApi) {
 
     companion object {
         const val SERVER_NAME: String = "burp-mcp-lite"
-        const val SERVER_VERSION: String = "0.3.0"
+        const val SERVER_VERSION: String = "0.3.1"
     }
 
     private var server: EmbeddedServer<*, *>? = null
@@ -52,7 +53,8 @@ class ServerManager(private val api: MontoyaApi) {
                 server = null
 
                 val source = BurpHistorySource(api)
-                val registry = ToolRegistry.build(source)
+                val siteMap = BurpSiteMapSource(api)
+                val registry = ToolRegistry.build(source, siteMap)
 
                 val mcpServer = Server(
                     serverInfo = Implementation(SERVER_NAME, SERVER_VERSION),

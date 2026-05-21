@@ -1,6 +1,7 @@
 package io.github.dead4f.burpmcplite.server
 
 import io.github.dead4f.burpmcplite.snapshot.FakeHistorySource
+import io.github.dead4f.burpmcplite.snapshot.FakeSiteMapSource
 import io.github.dead4f.burpmcplite.snapshot.RawEntry
 import io.github.dead4f.burpmcplite.tools.ToolRegistry
 import kotlinx.serialization.json.Json
@@ -27,11 +28,11 @@ class JsonRpcTest {
             response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 2\r\n\r\nok",
             notes = null,
         )
-        return ToolRegistry.build(FakeHistorySource.of(raw))
+        return ToolRegistry.build(FakeHistorySource.of(raw), FakeSiteMapSource.of(raw))
     }
 
     private fun dispatch(payload: String) =
-        JsonRpc.dispatch(json.parseToJsonElement(payload), registry(), "burp-mcp-lite", "0.3.0")
+        JsonRpc.dispatch(json.parseToJsonElement(payload), registry(), "burp-mcp-lite", "0.3.1")
 
     @Test fun `initialize returns server info and tools capability`() {
         val r = dispatch("""{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18"}}""")
@@ -54,13 +55,13 @@ class JsonRpcTest {
         assertNull(r.response)
     }
 
-    @Test fun `tools list returns all six tools with name description schema`() {
+    @Test fun `tools list returns all seven tools with name description schema`() {
         val r = dispatch("""{"jsonrpc":"2.0","id":2,"method":"tools/list"}""")
         val tools = r.response!!["result"]!!.jsonObject["tools"]!!.jsonArray
-        assertEquals(6, tools.size)
+        assertEquals(7, tools.size)
         val names = tools.map { it.jsonObject["name"]!!.jsonPrimitive.content }.toSet()
         assertEquals(
-            setOf("list_history", "view_request", "view_response", "match", "endpoints", "stats"),
+            setOf("list_history", "view_request", "view_response", "match", "endpoints", "sitemap", "stats"),
             names,
         )
         // Every tool has a description and a schema.

@@ -179,6 +179,104 @@ object Render {
 
     data class EndpointRow(val method: String, val host: String, val path: String, val count: Int)
 
+    /** One host inventory row in `sitemap mode=domains` output. */
+    data class DomainRow(val host: String, val count: Int)
+
+    fun renderDomains(rows: List<DomainRow>, total: Int, offset: Int): String {
+        if (rows.isEmpty()) return "(no domains)\n-- 0 of $total (offset $offset) --"
+        val hostW = minOf(64, rows.maxOf { it.host.length })
+        val lines = rows.map { r ->
+            truncate(r.host, hostW).padEnd(hostW) + "  ×${r.count}"
+        }.toMutableList()
+        lines += "-- ${rows.size} of $total (offset $offset) --"
+        return lines.joinToString("\n")
+    }
+
+    fun renderDomainsNdjson(rows: List<DomainRow>): String =
+        rows.joinToString("\n") { r ->
+            JsonObject(
+                mapOf("host" to JsonPrimitive(r.host), "count" to JsonPrimitive(r.count)),
+            ).toString()
+        }
+
+    /**
+     * One deduplicated site-map row, scoped to a single domain (host is
+     * implicit). `status` / `mime` are the *last seen* values; `count` is
+     * the hit total.
+     */
+    data class SitemapRow(
+        val method: String,
+        val path: String,
+        val status: Int,
+        val mime: String,
+        val count: Int,
+    )
+
+    fun renderSitemap(domain: String, rows: List<SitemapRow>, total: Int, offset: Int): String {
+        val header = "domain: $domain"
+        if (rows.isEmpty()) return "$header\n(no entries)\n-- 0 of $total (offset $offset) --"
+        val methodW = rows.maxOf { it.method.length }
+        val statusW = maxOf(3, rows.maxOf { (if (it.status > 0) it.status.toString() else "-").length })
+        val pathW = minOf(72, rows.maxOf { it.path.length })
+        val mimeW = minOf(24, rows.maxOf { it.mime.ifEmpty { "-" }.length })
+        val lines = mutableListOf(header)
+        for (r in rows) {
+            val statusCell = if (r.status > 0) r.status.toString() else "-"
+            val mimeCell = r.mime.ifEmpty { "-" }
+            lines += r.method.padEnd(methodW) +
+                "  " + statusCell.padEnd(statusW) +
+                "  " + truncate(r.path, pathW).padEnd(pathW) +
+                "  " + truncate(mimeCell, mimeW).padEnd(mimeW) +
+                "  ×${r.count}"
+        }
+        lines += "-- ${rows.size} of $total (offset $offset) --"
+        return lines.joinToString("\n")
+    }
+
+    fun renderSitemapNdjson(rows: List<SitemapRow>): String =
+        rows.joinToString("\n") { r ->
+            JsonObject(
+                mapOf(
+                    "method" to JsonPrimitive(r.method),
+                    "status" to JsonPrimitive(r.status),
+                    "path" to JsonPrimitive(r.path),
+                    "mime" to JsonPrimitive(r.mime),
+                    "count" to JsonPrimitive(r.count),
+                ),
+            ).toString()
+        }
+
+    /** One flat (non-dedup) site-map row — method/status/path only, domain-scoped. */
+    data class SitemapFlatRow(val method: String, val status: Int, val path: String)
+
+    fun renderSitemapFlat(domain: String, rows: List<SitemapFlatRow>, total: Int, offset: Int): String {
+        val header = "domain: $domain"
+        if (rows.isEmpty()) return "$header\n(no entries)\n-- 0 of $total (offset $offset) --"
+        val methodW = rows.maxOf { it.method.length }
+        val statusW = maxOf(3, rows.maxOf { (if (it.status > 0) it.status.toString() else "-").length })
+        val pathW = minOf(96, rows.maxOf { it.path.length })
+        val lines = mutableListOf(header)
+        for (r in rows) {
+            val statusCell = if (r.status > 0) r.status.toString() else "-"
+            lines += r.method.padEnd(methodW) +
+                "  " + statusCell.padEnd(statusW) +
+                "  " + truncate(r.path, pathW).padEnd(pathW)
+        }
+        lines += "-- ${rows.size} of $total (offset $offset) --"
+        return lines.joinToString("\n")
+    }
+
+    fun renderSitemapFlatNdjson(rows: List<SitemapFlatRow>): String =
+        rows.joinToString("\n") { r ->
+            JsonObject(
+                mapOf(
+                    "method" to JsonPrimitive(r.method),
+                    "status" to JsonPrimitive(r.status),
+                    "path" to JsonPrimitive(r.path),
+                ),
+            ).toString()
+        }
+
     fun renderStats(
         total: Int,
         byMethod: Map<String, Int>,

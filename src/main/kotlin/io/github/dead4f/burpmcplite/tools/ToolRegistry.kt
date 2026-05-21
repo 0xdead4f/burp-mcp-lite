@@ -1,6 +1,7 @@
 package io.github.dead4f.burpmcplite.tools
 
 import io.github.dead4f.burpmcplite.snapshot.HistorySource
+import io.github.dead4f.burpmcplite.snapshot.SiteMapSource
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
@@ -42,7 +43,7 @@ data class ToolCallResult(val text: String, val isError: Boolean = false) {
 object ToolRegistry {
     private val json = Json { ignoreUnknownKeys = true; isLenient = true }
 
-    fun build(source: HistorySource): List<ToolDef> = listOf(
+    fun build(source: HistorySource, siteMap: SiteMapSource): List<ToolDef> = listOf(
         ToolDef(
             name = "list_history",
             description =
@@ -110,6 +111,23 @@ object ToolRegistry {
             try {
                 val parsed = json.decodeFromJsonElement(EndpointsArgs.serializer(), args)
                 ToolCallResult.ok(EndpointsTool.run(source, parsed))
+            } catch (t: Throwable) { ToolCallResult.err(t) }
+        },
+        ToolDef(
+            name = "sitemap",
+            description =
+                "Browse Burp's site map (spider + scanner + proxy). " +
+                    "mode=\"domains\" (default) lists unique hosts only. " +
+                    "mode=\"entries\" needs domain= (or prefix=) and lists endpoints " +
+                    "under that host: dedup=true (default) groups by method+path " +
+                    "with last-seen status/mime + hit count; dedup=false flat-lists " +
+                    "method/status/path per entry. Host column is omitted in " +
+                    "entries mode — the domain is implicit.",
+            inputSchema = sitemapSchema(),
+        ) { args ->
+            try {
+                val parsed = json.decodeFromJsonElement(SiteMapArgs.serializer(), args)
+                ToolCallResult.ok(SiteMapTool.run(siteMap, parsed))
             } catch (t: Throwable) { ToolCallResult.err(t) }
         },
         ToolDef(
@@ -203,6 +221,27 @@ object ToolRegistry {
             put("max_hits", s("integer"))
         },
         required = listOf("id", "pattern"),
+    )
+
+    private fun sitemapSchema(): JsonObject = schema(
+        properties = buildJsonObject {
+            put("mode", strEnum("domains", "entries"))
+            put("domain", s("string"))
+            put("dedup", s("boolean"))
+            put("path", s("string"))
+            put("method", oneOfStringOrArray())
+            put("status", s("string"))
+            put("mime", s("string"))
+            put("match", s("string"))
+            put("match_in", strEnum(
+                "request.body", "request.headers", "request.all",
+                "response.body", "response.headers", "response.all",
+            ))
+            put("limit", s("integer"))
+            put("offset", s("integer"))
+            put("format", strEnum("text", "json"))
+            put("prefix", s("string"))
+        },
     )
 
     private fun endpointsSchema(): JsonObject = schema(

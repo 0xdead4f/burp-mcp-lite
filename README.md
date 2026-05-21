@@ -1,8 +1,8 @@
 # burp-mcp-lite
 
-Token-efficient Burpsuite MCP server.
+**Save 90%+ of your tokens on Burp Suite MCP — seven lean tools.**
 
-This is a from-scratch Kotlin rewrite of PortSwigger's official Burp MCP extension, keeping the same SSE transport and Montoya entry point but cutting the tool surface down to **six** tools tuned for low context cost. Headers off by default. Auth values redacted to length stubs. A `match` *predicate* tool that returns matched / not-matched + a bounded evidence snippet instead of dumping the whole body.
+This is a from-scratch Kotlin rewrite of PortSwigger's official Burp MCP extension, keeping the same SSE transport and Montoya entry point but cutting the tool surface down to **seven** tools tuned for low context cost. Headers off by default. Auth values redacted to length stubs. A `match` *predicate* tool that returns matched / not-matched + a bounded evidence snippet instead of dumping the whole body.
 
 ## What it replaces
 
@@ -26,7 +26,8 @@ Token cost, tool by tool — same job, both servers:
 | `view_request` | View one request by id. Headers + cookies OFF unless asked. Auth values redacted. |
 | `view_response` | View one response by id. `body="auto"` truncates &gt;4 KB to `head:20`. |
 | `match` | Predicate over one entry — matched? + small evidence snippet. Never the whole body. |
-| `endpoints` | Deduplicated method+host+path inventory with hit counts. |
+| `endpoints` | Deduplicated method+host+path inventory with hit counts (from proxy history). |
+| `sitemap` | Browse Burp's site map (spider + scanner + proxy). `mode="domains"` (default) is just the host inventory; `mode="entries" domain=…` lists endpoints under one host — `dedup=true` (default) groups by method+path with last-seen status/mime + hit count, `dedup=false` flat-lists method/status/path. |
 | `stats` | Aggregates: by method, status class, top hosts. |
 
 All tools share these flags where they apply:
@@ -51,7 +52,7 @@ Requires JDK 21. The build uses Gradle 9.x via the bundled wrapper.
 ## Install in Burp
 
 1. Run `./gradlew shadowJar`.
-2. In Burp: `Extensions → Installed → Add → Java`, pick `build/libs/burp-mcp-lite-0.3.0.jar`.
+2. In Burp: `Extensions → Installed → Add → Java`, pick `build/libs/burp-mcp-lite-0.3.1.jar`.
 3. A new top-level **MCP Lite** tab appears. The server auto-starts on `127.0.0.1:9876`.
 
 ## Connect an MCP client
