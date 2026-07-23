@@ -35,8 +35,10 @@ object Render {
     fun parseField(name: String): Field? =
         try { Field.valueOf(name) } catch (_: Exception) { null }
 
-    fun formatEntryTime(e: HistoryEntry): String {
-        val instant = entryTimestamp(e)
+    fun formatEntryTime(e: HistoryEntry): String = formatInstant(entryTimestamp(e))
+
+    /** `HH:mm:ss` for today, `MM-DD HH:mm:ss` otherwise. */
+    fun formatInstant(instant: java.time.Instant): String {
         val zdt = instant.atZone(zone)
         val today = LocalDate.now(zone)
         val sameDay = zdt.toLocalDate() == today
@@ -275,6 +277,107 @@ object Render {
                     "path" to JsonPrimitive(r.path),
                 ),
             ).toString()
+        }
+
+    // ---- collaborator ---------------------------------------------------
+
+    /** One minted payload, as rendered by `collaborator_payload`. */
+    data class PayloadRow(val id: String, val value: String, val customData: String?)
+
+    fun renderPayloads(server: String, rows: List<PayloadRow>): String {
+        if (rows.isEmpty()) return "(no payloads generated)"
+        if (rows.size == 1) {
+            val r = rows.single()
+            val lines = mutableListOf("payload: ${r.value}", "id: ${r.id}")
+            if (r.customData != null) lines += "custom_data: ${r.customData}"
+            return lines.joinToString("\n")
+        }
+        val showData = rows.any { it.customData != null }
+        val idW = maxOf("id".length, rows.maxOf { it.id.length })
+        val valW = maxOf("payload".length, rows.maxOf { it.value.length })
+        val lines = mutableListOf("server: $server")
+        lines += buildString {
+            append("id".padEnd(idW)).append("  ").append("payload".padEnd(valW))
+            if (showData) append("  ").append("custom_data")
+        }.trimEnd()
+        for (r in rows) {
+            lines += buildString {
+                append(r.id.padEnd(idW)).append("  ").append(r.value.padEnd(valW))
+                if (showData) append("  ").append(r.customData ?: "-")
+            }.trimEnd()
+        }
+        lines += "-- ${rows.size} payloads --"
+        return lines.joinToString("\n")
+    }
+
+    /**
+     * One out-of-band hit in the compact `collaborator_log` table. [type] is
+     * pre-composed (e.g. `DNS(A)`); [detail] is rendered as a separate block
+     * below the table and only when the caller asked for it.
+     */
+    data class InteractionRow(
+        val time: String,
+        val type: String,
+        val client: String,
+        val payload: String,
+        val customData: String?,
+        val detail: String?,
+    )
+
+    fun renderInteractions(
+        rows: List<InteractionRow>,
+        total: Int,
+        offset: Int,
+        issued: Int,
+        note: String? = null,
+    ): String {
+        if (rows.isEmpty()) {
+            val head = if (issued > 0) "(no interactions) — $issued payload(s) issued this session"
+            else "(no interactions)"
+            return "$head\n-- 0 of $total (offset $offset) --"
+        }
+        val showData = rows.any { it.customData != null }
+        val cols = mutableListOf("time", "type", "client", "payload")
+        if (showData) cols += "data"
+        val values: List<List<String>> = rows.map { r ->
+            val base = mutableListOf(r.time, r.type, r.client.ifEmpty { "-" }, r.payload)
+            if (showData) base += (r.customData ?: "-")
+            base
+        }
+        val widths = cols.indices.map { i ->
+            maxOf(cols[i].length, values.maxOf { it[i].length })
+        }
+        val lines = mutableListOf(
+            cols.mapIndexed { i, c -> c.padEnd(widths[i]) }.joinToString("  ").trimEnd(),
+        )
+        for (v in values) {
+            lines += v.mapIndexed { i, c -> c.padEnd(widths[i]) }.joinToString("  ").trimEnd()
+        }
+        lines += "-- ${rows.size} of $total (offset $offset) --"
+
+        val withDetail = rows.filter { !it.detail.isNullOrEmpty() }
+        if (withDetail.isNotEmpty()) {
+            for (r in withDetail) {
+                lines += ""
+                lines += "[${r.payload} ${r.type} ${r.time}]"
+                lines += r.detail!!
+            }
+        }
+        if (note != null) lines += note
+        return lines.joinToString("\n")
+    }
+
+    fun renderInteractionsNdjson(rows: List<InteractionRow>, includeDetail: Boolean): String =
+        rows.joinToString("\n") { r ->
+            val map = buildMap<String, JsonElement> {
+                put("time", JsonPrimitive(r.time))
+                put("type", JsonPrimitive(r.type))
+                put("client", JsonPrimitive(r.client))
+                put("payload", JsonPrimitive(r.payload))
+                put("custom_data", r.customData?.let { JsonPrimitive(it) } ?: JsonNull)
+                if (includeDetail) put("detail", r.detail?.let { JsonPrimitive(it) } ?: JsonNull)
+            }
+            JsonObject(map).toString()
         }
 
     fun renderStats(

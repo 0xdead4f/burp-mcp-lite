@@ -49,6 +49,20 @@ application {
     mainClass.set("io.github.dead4f.burpmcplite.BurpMcpLiteExtension")
 }
 
+/*
+ * The Ktor plugin drags in `application`, which wants to emit launcher scripts
+ * and dist archives. There is no launcher — the artifact is a Burp extension —
+ * and because shadowJar claims the plain `.jar` name (classifier ""), those
+ * tasks read build/libs while shadowJar is writing it. Gradle rightly fails
+ * that as an undeclared dependency. Nothing consumes the output, so switch the
+ * distribution tasks off rather than ordering a race we don't need.
+ */
+tasks.matching {
+    it.name in setOf("startScripts", "distTar", "distZip", "shadowDistTar", "shadowDistZip")
+}.configureEach {
+    enabled = false
+}
+
 tasks {
     test {
         useJUnitPlatform()

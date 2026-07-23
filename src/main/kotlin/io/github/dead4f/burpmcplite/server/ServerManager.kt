@@ -1,6 +1,7 @@
 package io.github.dead4f.burpmcplite.server
 
 import burp.api.montoya.MontoyaApi
+import io.github.dead4f.burpmcplite.snapshot.BurpCollaboratorSource
 import io.github.dead4f.burpmcplite.snapshot.BurpHistorySource
 import io.github.dead4f.burpmcplite.snapshot.BurpSiteMapSource
 import io.github.dead4f.burpmcplite.tools.ToolRegistry
@@ -37,7 +38,7 @@ class ServerManager(private val api: MontoyaApi) {
 
     companion object {
         const val SERVER_NAME: String = "burp-mcp-lite"
-        const val SERVER_VERSION: String = "0.3.1"
+        const val SERVER_VERSION: String = "0.4.0"
     }
 
     private var server: EmbeddedServer<*, *>? = null
@@ -54,7 +55,14 @@ class ServerManager(private val api: MontoyaApi) {
 
                 val source = BurpHistorySource(api)
                 val siteMap = BurpSiteMapSource(api)
-                val registry = ToolRegistry.build(source, siteMap)
+                // Survives server restarts via the persisted secret key, so
+                // payloads planted before a toggle keep reporting in.
+                val collaborator = BurpCollaboratorSource(
+                    api = api,
+                    loadSecret = { config.collaboratorSecret },
+                    saveSecret = { config.collaboratorSecret = it },
+                )
+                val registry = ToolRegistry.build(source, siteMap, collaborator)
 
                 val mcpServer = Server(
                     serverInfo = Implementation(SERVER_NAME, SERVER_VERSION),

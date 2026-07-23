@@ -1,5 +1,6 @@
 package io.github.dead4f.burpmcplite.tools
 
+import io.github.dead4f.burpmcplite.snapshot.CollaboratorSource
 import io.github.dead4f.burpmcplite.snapshot.HistorySource
 import io.github.dead4f.burpmcplite.snapshot.SiteMapSource
 import kotlinx.serialization.json.Json
@@ -10,7 +11,7 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 
 /**
- * Single source of truth for the six MCP tools — name, description,
+ * Single source of truth for the MCP tools — name, description,
  * JSON Schema, and a handler that takes the raw arguments object and
  * returns a tool result.
  *
@@ -43,7 +44,11 @@ data class ToolCallResult(val text: String, val isError: Boolean = false) {
 object ToolRegistry {
     private val json = Json { ignoreUnknownKeys = true; isLenient = true }
 
-    fun build(source: HistorySource, siteMap: SiteMapSource): List<ToolDef> = listOf(
+    fun build(
+        source: HistorySource,
+        siteMap: SiteMapSource,
+        collaborator: CollaboratorSource,
+    ): List<ToolDef> = listOf(
         ToolDef(
             name = "list_history",
             description =
@@ -128,6 +133,40 @@ object ToolRegistry {
             try {
                 val parsed = json.decodeFromJsonElement(SiteMapArgs.serializer(), args)
                 ToolCallResult.ok(SiteMapTool.run(siteMap, parsed))
+            } catch (t: Throwable) { ToolCallResult.err(t) }
+        },
+        ToolDef(
+            name = "collaborator_payload",
+            description =
+                "Mint Burp Collaborator payload(s) for out-of-band testing — plant " +
+                    "them in SSRF / XXE / RCE / deserialization sinks, then poll " +
+                    "collaborator_log for hits. count=N mints N payloads in one call " +
+                    "(one per injection point). custom_data= tags them (alphanumeric, " +
+                    "≤16 chars) and is echoed back on every interaction; with count>1 " +
+                    "each payload gets the tag plus its index, so a hit names the " +
+                    "parameter that fired. Requires Burp Suite Professional.",
+            inputSchema = collaboratorPayloadSchema(),
+        ) { args ->
+            try {
+                val parsed = json.decodeFromJsonElement(CollaboratorPayloadArgs.serializer(), args)
+                ToolCallResult.ok(CollaboratorPayloadTool.run(collaborator, parsed))
+            } catch (t: Throwable) { ToolCallResult.err(t) }
+        },
+        ToolDef(
+            name = "collaborator_log",
+            description =
+                "Poll Burp Collaborator and list out-of-band interactions (DNS, HTTP, " +
+                    "SMTP) as a compact table: time, type, client IP, payload id, tag. " +
+                    "The raw HTTP request / SMTP conversation behind a hit is withheld " +
+                    "unless you pass detail=\"auto\" (or \"full\", \"head:N\", \"/regex/\"). " +
+                    "Filter with payload= (id, payload string, URL, or email — all " +
+                    "accepted) and type=dns|http|smtp. Hits accumulate, so polling " +
+                    "repeatedly never loses an earlier one.",
+            inputSchema = collaboratorLogSchema(),
+        ) { args ->
+            try {
+                val parsed = json.decodeFromJsonElement(CollaboratorLogArgs.serializer(), args)
+                ToolCallResult.ok(CollaboratorLogTool.run(collaborator, parsed))
             } catch (t: Throwable) { ToolCallResult.err(t) }
         },
         ToolDef(
@@ -241,6 +280,27 @@ object ToolRegistry {
             put("offset", s("integer"))
             put("format", strEnum("text", "json"))
             put("prefix", s("string"))
+        },
+    )
+
+    private fun collaboratorPayloadSchema(): JsonObject = schema(
+        properties = buildJsonObject {
+            put("count", s("integer"))
+            put("custom_data", s("string"))
+            put("bare", s("boolean"))
+        },
+    )
+
+    private fun collaboratorLogSchema(): JsonObject = schema(
+        properties = buildJsonObject {
+            put("payload", s("string"))
+            put("type", s("string"))
+            put("detail", s("string"))
+            put("context", s("integer"))
+            put("limit", s("integer"))
+            put("offset", s("integer"))
+            put("order", strEnum("latest", "oldest"))
+            put("format", strEnum("text", "json"))
         },
     )
 

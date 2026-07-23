@@ -1,8 +1,8 @@
 # burp-mcp-lite
 
-**Save 90%+ of your tokens on Burp Suite MCP — seven lean tools.**
+**Save 90%+ of your tokens on Burp Suite MCP — nine lean tools.**
 
-This is a from-scratch Kotlin rewrite of PortSwigger's official Burp MCP extension, keeping the same SSE transport and Montoya entry point but cutting the tool surface down to **seven** tools tuned for low context cost. Headers off by default. Auth values redacted to length stubs. A `match` *predicate* tool that returns matched / not-matched + a bounded evidence snippet instead of dumping the whole body.
+This is a from-scratch Kotlin rewrite of PortSwigger's official Burp MCP extension, keeping the same SSE transport and Montoya entry point but cutting the tool surface down to **nine** tools tuned for low context cost. Headers off by default. Auth values redacted to length stubs. A `match` *predicate* tool that returns matched / not-matched + a bounded evidence snippet instead of dumping the whole body.
 
 ## What it replaces
 
@@ -17,6 +17,8 @@ Token cost, tool by tool — same job, both servers:
 | Verify a value is in a response | `match` — \~60 tokens (matched? + 240-char snippet centered on hit) | `get_proxy_http_history_regex` — full body up to the 5000-char cut |
 | Inventory endpoints across history | `endpoints` — \~hundreds of tokens (deduplicated `method host path` + count) | no equivalent — page through `get_proxy_http_history` and dedup yourself (\~10 K+) |
 | Stats (counts by method / status class / top hosts) | `stats` — \~50 tokens | no equivalent — page through `get_proxy_http_history` and aggregate yourself |
+| Mint Collaborator payloads for 10 injection points | `collaborator_payload count=10` — one call, one table, one tag per point | `generate_collaborator_payload` — 10 round-trips, no per-point tagging |
+| Poll for OOB callbacks | `collaborator_log` — \~40 tokens (one line per hit, raw capture withheld) | `get_collaborator_interactions` — \~600+ tokens per HTTP hit (full JSON, raw request *and* response, every poll) |
 
 ## Tools
 
@@ -28,6 +30,8 @@ Token cost, tool by tool — same job, both servers:
 | `match` | Predicate over one entry — matched? + small evidence snippet. Never the whole body. |
 | `endpoints` | Deduplicated method+host+path inventory with hit counts (from proxy history). |
 | `sitemap` | Browse Burp's site map (spider + scanner + proxy). `mode="domains"` (default) is just the host inventory; `mode="entries" domain=…` lists endpoints under one host — `dedup=true` (default) groups by method+path with last-seen status/mime + hit count, `dedup=false` flat-lists method/status/path. |
+| `collaborator_payload` | Mint Burp Collaborator payloads for OOB testing. `count=N` mints N in one call; `custom_data=` tags them (and appends a per-payload index when `count>1`, so a hit names the injection point that fired). Pro only. |
+| `collaborator_log` | Poll Collaborator and list DNS / HTTP / SMTP hits as a compact table. The raw capture is withheld until you ask with `detail=`. Filter with `payload=` and `type=`. Pro only. |
 | `stats` | Aggregates: by method, status class, top hosts. |
 
 All tools share these flags where they apply:
@@ -36,8 +40,18 @@ All tools share these flags where they apply:
 - `match=`, `match_in=` (`request.body|headers|all`, `response.body|headers|all`)
 - `fields=` from `id,method,status,host,path,len,mime,time`
 - `format=text|json`, `order=latest|oldest`, `refresh=true` (force snapshot rebuild)
-- `body=full|none|head:N|tail:N|/regex/` (+ `context=N` lines)
+- `body=full|none|head:N|tail:N|/regex/` (+ `context=N` lines) — `detail=` on `collaborator_log` takes the same specs
 - `redact=true` (default) on the view tools
+
+### Out-of-band testing
+
+```
+collaborator_payload count=3 custom_data=uid      → uid1, uid2, uid3 planted in 3 sinks
+collaborator_log                                   → time / type / client / payload / tag, one line per hit
+collaborator_log payload=abc123 detail=auto        → the raw HTTP request the target's backend made
+```
+
+`payload=` takes the id, the payload string, a full URL, or an email address — whichever form you pasted into the target. Hits accumulate in-extension, so polling repeatedly never drops one Burp already handed over. The Collaborator client's secret key is persisted, so payloads planted before a Burp restart keep reporting in.
 
 ## Build
 
@@ -52,7 +66,7 @@ Requires JDK 21. The build uses Gradle 9.x via the bundled wrapper.
 ## Install in Burp
 
 1. Run `./gradlew shadowJar`.
-2. In Burp: `Extensions → Installed → Add → Java`, pick `build/libs/burp-mcp-lite-0.3.1.jar`.
+2. In Burp: `Extensions → Installed → Add → Java`, pick `build/libs/burp-mcp-lite-0.4.0.jar`.
 3. A new top-level **MCP Lite** tab appears. The server auto-starts on `127.0.0.1:9876`.
 
 ## Connect an MCP client

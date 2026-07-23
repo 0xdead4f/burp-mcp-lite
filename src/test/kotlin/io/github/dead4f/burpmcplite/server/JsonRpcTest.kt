@@ -1,5 +1,6 @@
 package io.github.dead4f.burpmcplite.server
 
+import io.github.dead4f.burpmcplite.snapshot.FakeCollaboratorSource
 import io.github.dead4f.burpmcplite.snapshot.FakeHistorySource
 import io.github.dead4f.burpmcplite.snapshot.FakeSiteMapSource
 import io.github.dead4f.burpmcplite.snapshot.RawEntry
@@ -28,7 +29,7 @@ class JsonRpcTest {
             response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 2\r\n\r\nok",
             notes = null,
         )
-        return ToolRegistry.build(FakeHistorySource.of(raw), FakeSiteMapSource.of(raw))
+        return ToolRegistry.build(FakeHistorySource.of(raw), FakeSiteMapSource.of(raw), FakeCollaboratorSource())
     }
 
     private fun dispatch(payload: String) =
@@ -55,13 +56,16 @@ class JsonRpcTest {
         assertNull(r.response)
     }
 
-    @Test fun `tools list returns all seven tools with name description schema`() {
+    @Test fun `tools list returns all nine tools with name description schema`() {
         val r = dispatch("""{"jsonrpc":"2.0","id":2,"method":"tools/list"}""")
         val tools = r.response!!["result"]!!.jsonObject["tools"]!!.jsonArray
-        assertEquals(7, tools.size)
+        assertEquals(9, tools.size)
         val names = tools.map { it.jsonObject["name"]!!.jsonPrimitive.content }.toSet()
         assertEquals(
-            setOf("list_history", "view_request", "view_response", "match", "endpoints", "sitemap", "stats"),
+            setOf(
+                "list_history", "view_request", "view_response", "match", "endpoints", "sitemap",
+                "collaborator_payload", "collaborator_log", "stats",
+            ),
             names,
         )
         // Every tool has a description and a schema.

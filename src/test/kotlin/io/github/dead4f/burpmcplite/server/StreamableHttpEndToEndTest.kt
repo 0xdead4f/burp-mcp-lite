@@ -1,5 +1,6 @@
 package io.github.dead4f.burpmcplite.server
 
+import io.github.dead4f.burpmcplite.snapshot.FakeCollaboratorSource
 import io.github.dead4f.burpmcplite.snapshot.FakeHistorySource
 import io.github.dead4f.burpmcplite.snapshot.FakeSiteMapSource
 import io.github.dead4f.burpmcplite.snapshot.RawEntry
@@ -37,7 +38,7 @@ class StreamableHttpEndToEndTest {
             response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 2\r\n\r\nok",
             notes = null,
         )
-        return ToolRegistry.build(FakeHistorySource.of(raw), FakeSiteMapSource.of(raw))
+        return ToolRegistry.build(FakeHistorySource.of(raw), FakeSiteMapSource.of(raw), FakeCollaboratorSource())
     }
 
     @Test fun `POST initialize returns negotiated protocol and session header`() = runTest {

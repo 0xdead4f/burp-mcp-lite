@@ -19,11 +19,23 @@ class Config(private val store: PersistedObject?) {
         get() = store?.getInteger(KEY_PORT) ?: DEFAULT_PORT
         set(v) { store?.setInteger(KEY_PORT, v) }
 
+    /**
+     * Secret key of the Burp Collaborator client, so `restoreClient` can hand
+     * back the same payload namespace (and its interaction history) after a
+     * server toggle or a Burp restart. Without this, every restart orphans the
+     * payloads already planted in a target. Null until the first payload is
+     * minted.
+     */
+    var collaboratorSecret: String?
+        get() = store?.getString(KEY_COLLAB_SECRET)
+        set(v) { if (v != null) store?.setString(KEY_COLLAB_SECRET, v) }
+
     companion object {
         const val DEFAULT_HOST: String = "127.0.0.1"
         const val DEFAULT_PORT: Int = 9876
         private const val KEY_ENABLED = "burp-mcp-lite.enabled"
         private const val KEY_HOST = "burp-mcp-lite.host"
         private const val KEY_PORT = "burp-mcp-lite.port"
+        private const val KEY_COLLAB_SECRET = "burp-mcp-lite.collaborator.secret"
     }
 }
